@@ -3,13 +3,15 @@ name = "voxel-world-rust"
 version = "0.1.0"
 authors = ["TriForMine <teamtriformine@gmail.com>"]
 edition = "2018"
+license = "MIT"
+description = "An open source minecraft like voxel world game using rust bevy engine"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = 'main' }
 building-blocks = "0.5.0"
-bevy_fly_camera = { git = "https://github.com/TriForMine/bevy_fly_camera.git" }
+bevy_flycam = { git = "https://github.com/TriForMine/bevy_flycam" }
 simdnoise = "3.1.6"
 env_logger = "0.8.3"
 
