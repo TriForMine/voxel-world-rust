@@ -4,12 +4,17 @@ An open source minecraft like voxel world game using rust bevy engine
 
 ## Todo
 - [ ] Infinite generations
-- [ ] Modding
-- [ ] Multiplayer
-- [ ] Crafting
+- [ ] Biomes
+- [ ] UI
+- [ ] Saving
+
+## Ideas
 - [ ] Storage/Chests
 - [ ] Industrial System (Electricity)
 - [ ] Research system and more
+- [ ] Modding
+- [ ] Multiplayer
+- [ ] Crafting
 
 ## Main libraries
 [bevy](https://github.com/bevyengine/bevy)
