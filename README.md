@@ -6,6 +6,7 @@ An open source minecraft like voxel world game using rust bevy engine
 - [ ] Infinite generations
 - [ ] Biomes
 - [ ] UI
+- [ ] Placing / Breaking Blocks
 - [ ] Saving
 
 ## Ideas
