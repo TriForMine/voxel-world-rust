@@ -4,6 +4,8 @@ jobs:
   clippy_check:
     runs-on: ubuntu-latest
     steps:
+      - name: setup libasound2-dev and libudev-dev on ubuntu
+        run: sudo apt install libasound2-dev libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
