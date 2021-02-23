@@ -17,6 +17,9 @@ jobs:
           toolchain: nightly
           override: true
           components: clippy
+          
+      - name: setup libasound2-dev on ubuntu
+        run: sudo apt install libasound2-dev
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
@@ -44,30 +47,3 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-
-  combo:
-    name: Clippy + rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Install nightly toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-          components: rustfmt, clippy
-
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
