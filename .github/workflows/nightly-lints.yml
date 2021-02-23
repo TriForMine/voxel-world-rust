@@ -18,8 +18,8 @@ jobs:
           override: true
           components: clippy
           
-      - name: setup libasound2-dev on ubuntu
-        run: sudo apt install libasound2-dev
+      - name: setup libasound2-dev and libudev-dev on ubuntu
+        run: sudo apt install libasound2-dev libudev-dev
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
