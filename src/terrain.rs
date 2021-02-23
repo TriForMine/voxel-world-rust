@@ -6,15 +6,15 @@ use bevy::{
     },
     tasks::{ComputeTaskPool, TaskPool},
 };
-#[cfg(feature = "simd")]
-use simdnoise::simd;
 use building_blocks::{
     core::prelude::*,
     mesh::*,
     storage::{prelude::*, IsEmpty},
 };
-use std::collections::{HashMap, HashSet};
 use core::arch::x86_64::{_mm256_set1_ps, _mm256_storeu_ps};
+#[cfg(feature = "simd")]
+use simdnoise::simd;
+use std::collections::{HashMap, HashSet};
 
 type VoxelMap = ChunkHashMap3<Voxel>;
 type VoxelId = u8;
@@ -46,7 +46,7 @@ impl IsOpaque for Voxel {
 #[derive(Eq, PartialEq)]
 struct TrivialMergeValue;
 
-impl MergeVoxel  for Voxel {
+impl MergeVoxel for Voxel {
     type VoxelValue = TrivialMergeValue;
 
     fn voxel_merge_value(&self) -> Self::VoxelValue {
@@ -70,7 +70,7 @@ impl Default for VoxelResource {
                 ambient_value: Voxel(0),
                 default_chunk_metadata: (),
             }
-                .build_with_hash_map_storage(),
+            .build_with_hash_map_storage(),
             materials: Vec::new(),
         }
     }
@@ -88,27 +88,23 @@ impl Default for MeshesResource {
     }
 }
 
-fn generate_chunk(
-    res: &mut ResMut<VoxelResource>,
-    min: Point3i,
-    max: Point3i
-) {
+fn generate_chunk(res: &mut ResMut<VoxelResource>, min: Point3i, max: Point3i) {
     let yscale = 128.0f32;
     for x in min.z()..max.z() {
         for z in min.x()..max.x() {
             unsafe {
-                let max_y = SEA_LEVEL + (
-                    if is_x86_feature_detected!("avx2") {
+                let max_y = SEA_LEVEL
+                    + (if is_x86_feature_detected!("avx2") {
                         let x_256 = _mm256_set1_ps((x as f32) * 0.02);
                         let z_256 = _mm256_set1_ps((z as f32) * 0.02);
-                        let s =  simdnoise::avx2::simplex_2d(x_256, z_256, 4654545);
+                        let s = simdnoise::avx2::simplex_2d(x_256, z_256, 4654545);
                         let mut r: f32 = 0.0;
                         _mm256_storeu_ps(&mut r, s);
                         r
                     } else {
                         simdnoise::scalar::simplex_2d((x as f32) * 0.1, (z as f32) * 0.1, 4654545)
-                    } * yscale
-                ).round() as i32;
+                    } * yscale)
+                        .round() as i32;
                 for y in 0..(max_y + 1) {
                     *res.map.get_mut(PointN([x, y, z])) = Voxel(1);
                 }
@@ -117,10 +113,7 @@ fn generate_chunk(
     }
 }
 
-fn generate_voxels(
-    mut voxels: ResMut<VoxelResource>,
-    voxel_meshes: Res<MeshesResource>,
-) {
+fn generate_voxels(mut voxels: ResMut<VoxelResource>, voxel_meshes: Res<MeshesResource>) {
     for z in (0..128).step_by(voxels.chunk_size as usize) {
         for x in (0..128).step_by(voxels.chunk_size as usize) {
             let p = PointN([x, 0, z]);
@@ -137,10 +130,7 @@ fn generate_voxels(
     }
 }
 
-fn get_mesh(
-    voxel_map: &VoxelMap,
-    pool: &TaskPool
-) -> Vec<Option<PosNormMesh>> {
+fn get_mesh(voxel_map: &VoxelMap, pool: &TaskPool) -> Vec<Option<PosNormMesh>> {
     pool.scope(|s| {
         for chunk_key in voxel_map.storage().keys() {
             s.spawn(async move {
@@ -217,23 +207,18 @@ fn generate_meshes(
             if voxel_meshes.generated_map.get(&p).is_some() {
                 return;
             }
-            let entity_mesh = get_mesh(
-                &voxels.map,
-                &pool
-            );
+            let entity_mesh = get_mesh(&voxels.map, &pool);
             let mut generated_meshes: Vec<Entity> = Vec::new();
             for mesh in entity_mesh.into_iter() {
                 if let Some(mesh) = mesh {
-                    generated_meshes.push(
-                        create_mesh_entity(
-                            mesh,
-                            commands,
-                            voxels.materials[1].clone(),
-                            &mut meshes,
-                        )
-                    )
+                    generated_meshes.push(create_mesh_entity(
+                        mesh,
+                        commands,
+                        voxels.materials[1].clone(),
+                        &mut meshes,
+                    ))
                 }
-            };
+            }
             voxel_meshes.generated_map.insert(p, generated_meshes);
         }
     }
@@ -254,20 +239,18 @@ fn init_materials(
     let dirt_texture = asset_server.load("blocks/dirt.png");
 
     res.materials.push(materials.add(Color::NONE.into()));
-    res.materials
-        .push(materials.add(StandardMaterial {
-            albedo_texture: Some(dirt_texture),
-            unlit: true,
-            ..Default::default()
-        }));
+    res.materials.push(materials.add(StandardMaterial {
+        albedo_texture: Some(dirt_texture),
+        unlit: true,
+        ..Default::default()
+    }));
 }
 
 pub struct TerrainPlugin;
 
 impl Plugin for TerrainPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app
-            .insert_resource::<VoxelResource>(VoxelResource::default())
+        app.insert_resource::<VoxelResource>(VoxelResource::default())
             .insert_resource::<MeshesResource>(MeshesResource::default())
             .add_startup_system(init_materials.system())
             .add_system(generate_voxels.system())
