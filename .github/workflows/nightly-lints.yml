@@ -10,6 +10,9 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
 
+      - name: setup libasound2-dev and libudev-dev on ubuntu
+        run: sudo apt install libasound2-dev libudev-dev
+
       - name: Install nightly toolchain with clippy available
         uses: actions-rs/toolchain@v1
         with:
@@ -17,9 +20,6 @@ jobs:
           toolchain: nightly
           override: true
           components: clippy
-          
-      - name: setup libasound2-dev and libudev-dev on ubuntu
-        run: sudo apt install libasound2-dev libudev-dev
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
