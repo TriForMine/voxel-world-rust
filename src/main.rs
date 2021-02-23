@@ -3,14 +3,9 @@ use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
 };
-use bevy_fly_camera::{
-    FlyCamera,
-    FlyCameraPlugin,
-};
+use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 
-use voxel_world_rust::{
-    terrain::*,
-};
+use voxel_world_rust::terrain::*;
 
 fn main() {
     App::build()
@@ -30,9 +25,7 @@ fn main() {
         .run();
 }
 
-fn setup(
-    commands: &mut Commands,
-) {
+fn setup(commands: &mut Commands) {
     commands
         .spawn(LightBundle {
             transform: Transform::from_translation(Vec3::new(14.0, 18.0, 14.0)),
