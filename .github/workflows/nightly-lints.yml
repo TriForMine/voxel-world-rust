@@ -3,29 +3,20 @@ on: [push, pull_request]
 name: Nightly lints
 
 jobs:
-  clippy:
-    name: Clippy
+  clippy_check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
       - name: setup libasound2-dev and libudev-dev on ubuntu
         run: sudo apt install libasound2-dev libudev-dev
-
-      - name: Install nightly toolchain with clippy available
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-          components: clippy
-
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
+            toolchain: nightly
+            components: clippy
+            override: true
+      - uses: actions-rs/clippy-check@v1
         with:
-          command: clippy
-          args: -- -D warnings
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   rustfmt:
     name: Format
