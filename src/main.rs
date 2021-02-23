@@ -24,9 +24,8 @@ fn main() {
 }
 
 fn setup(commands: &mut Commands) {
-    commands
-        .spawn(PbrBundle {
-            transform: Transform::from_translation(Vec3::new(14.0, 18.0, 14.0)),
-            ..Default::default()
-        });
+    commands.spawn(PbrBundle {
+        transform: Transform::from_translation(Vec3::new(14.0, 18.0, 14.0)),
+        ..Default::default()
+    });
 }

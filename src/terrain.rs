@@ -101,16 +101,16 @@ fn generate_chunk(res: &mut ResMut<VoxelResource>, min: Point3i, max: Point3i) {
             unsafe {
                 let max_y = SEA_LEVEL
                     + (if is_x86_feature_detected!("avx2") {
-                    let x_256 = _mm256_set1_ps((x as f32) * 0.05);
-                    let z_256 = _mm256_set1_ps((z as f32) * 0.05);
-                    let s = simdnoise::avx2::simplex_2d(x_256, z_256, 4654545);
-                    let mut r: f32 = 0.0;
-                    _mm256_storeu_ps(&mut r, s);
-                    r
-                } else {
-                    simdnoise::scalar::simplex_2d((x as f32) * 0.1, (z as f32) * 0.1, 4654545)
-                } * yscale)
-                    .round() as i32;
+                        let x_256 = _mm256_set1_ps((x as f32) * 0.05);
+                        let z_256 = _mm256_set1_ps((z as f32) * 0.05);
+                        let s = simdnoise::avx2::simplex_2d(x_256, z_256, 4654545);
+                        let mut r: f32 = 0.0;
+                        _mm256_storeu_ps(&mut r, s);
+                        r
+                    } else {
+                        simdnoise::scalar::simplex_2d((x as f32) * 0.1, (z as f32) * 0.1, 4654545)
+                    } * yscale)
+                        .round() as i32;
                 for y in 0..(max_y + 1) {
                     if y >= max_y - 3 {
                         *res.chunks.get_mut(PointN([x, y, z])) = Voxel(1);
@@ -173,10 +173,11 @@ fn get_meshes(voxel_map: &VoxelMap, pool: &TaskPool) -> Vec<Option<HashMap<Voxel
                     }
                 }
 
-                let layer_is_empty = meshes.iter().fold(
-                    false,
-                    |acc, (_material, mesh)| if acc { acc } else { mesh.is_empty() },
-                );
+                let layer_is_empty =
+                    meshes.iter().fold(
+                        false,
+                        |acc, (_material, mesh)| if acc { acc } else { mesh.is_empty() },
+                    );
 
                 if layer_is_empty {
                     None
@@ -202,7 +203,10 @@ fn create_mesh_entity(
         Mesh::ATTRIBUTE_POSITION,
         VertexAttributeValues::Float3(mesh.positions),
     );
-    render_mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, VertexAttributeValues::Float3(mesh.normals));
+    render_mesh.set_attribute(
+        Mesh::ATTRIBUTE_NORMAL,
+        VertexAttributeValues::Float3(mesh.normals),
+    );
     render_mesh.set_attribute(
         Mesh::ATTRIBUTE_UV_0,
         VertexAttributeValues::Float2(vec![[0.0; 2]; num_vertices]),
