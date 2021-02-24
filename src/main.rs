@@ -1,6 +1,6 @@
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    input::{system::exit_on_esc_system},
+    input::system::exit_on_esc_system,
     prelude::*,
 };
 use bevy_flycam::PlayerPlugin;
