@@ -3,7 +3,8 @@
 An open source minecraft like voxel world game using rust bevy engine
 
 ## Todo
-- [ ] Infinite generations
+- [x] Infinite generations
+- [x] Caverns
 - [ ] Biomes
 - [ ] UI
 - [ ] Placing / Breaking Blocks
