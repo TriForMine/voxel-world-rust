@@ -16,6 +16,7 @@ const CHUNK_SIZE: usize = 32;
 const SEA_LEVEL: i32 = 42;
 const VIEW_DISTANCE: usize = 8;
 const Y_SCALE: f32 = 64.0 * 8.0;
+const SEED: i32 = 15464;
 
 struct MeshesResource {
     pub generated_map: Vec<Point3i>,
@@ -43,9 +44,8 @@ fn generate_chunk(x: i32, z: i32, voxel_editor: &mut VoxelEditor<Voxel>) {
     let (noise, _min, max) =
         simdnoise::NoiseBuilder::gradient_2d_offset(x as f32, CHUNK_SIZE, z as f32, CHUNK_SIZE)
             .with_freq(0.008)
-            .with_seed(15464)
+            .with_seed(SEED)
             .generate();
-
 
     let min = PointN([x, 0, z]);
     let max = PointN([
@@ -54,20 +54,29 @@ fn generate_chunk(x: i32, z: i32, voxel_editor: &mut VoxelEditor<Voxel>) {
         z + CHUNK_SIZE as i32 - 1,
     ]);
 
-    let (cave_noise, _min, _cave_max) =
-        simdnoise::NoiseBuilder::turbulence_3d_offset(x as f32, CHUNK_SIZE, z as f32, CHUNK_SIZE, 0.0, max.y() as usize)
-            .with_freq(0.02)
-            .with_seed(15464)
-            .generate();
+    let (cave_noise, _min, _cave_max) = simdnoise::NoiseBuilder::turbulence_3d_offset(
+        x as f32,
+        CHUNK_SIZE,
+        z as f32,
+        CHUNK_SIZE,
+        0.0,
+        max.y() as usize,
+    )
+    .with_freq(0.02)
+    .with_seed(SEED)
+    .generate();
 
     voxel_editor.edit_extent_and_touch_neighbors(
         Extent3i::from_min_and_max(min, max),
         |p, voxel| {
             let height = SEA_LEVEL
                 + (noise[(p.z() - z) as usize * CHUNK_SIZE + (p.x() - x) as usize] * Y_SCALE)
-                .round() as i32;
+                    .round() as i32;
             *voxel = if p.y() <= height {
-                let cave_value = cave_noise[(p.x() - x) as usize + CHUNK_SIZE * p.y() as usize + CHUNK_SIZE * CHUNK_SIZE * (p.z() - z) as usize] * 64.0;
+                let cave_value = cave_noise[(p.x() - x) as usize
+                    + CHUNK_SIZE * p.y() as usize
+                    + CHUNK_SIZE * CHUNK_SIZE * (p.z() - z) as usize]
+                    * 64.0;
                 if cave_value < 1.0 {
                     Voxel::new(VoxelId(0), Sd16::ONE)
                 } else {

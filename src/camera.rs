@@ -43,7 +43,7 @@ fn initial_grab_cursor(mut windows: ResMut<Windows>) {
 fn setup_player(commands: &mut Commands) {
     commands
         .spawn(PerspectiveCameraBundle {
-            transform: Transform::from_translation(Vec3::new(0., 2., 0.)),
+            transform: Transform::from_translation(Vec3::new(0., 50., 0.)),
             ..Default::default()
         })
         .with(CameraTag)
