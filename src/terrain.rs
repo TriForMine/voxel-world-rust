@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    render::{prelude::*, texture::AddressMode},
+    render::{prelude::*, texture::AddressMode, camera::Camera},
 };
 use bevy_building_blocks::{
     empty_compressible_chunk_map, ChunkCacheConfig, MapIoPlugin, VoxelEditor, VoxelMap,
@@ -18,6 +18,7 @@ use smooth_voxel_renderer::{
     ArrayMaterial, LightBundle, MeshGeneratorPlugin, MeshMaterial, SmoothVoxelRenderPlugin,
 };
 use std::collections::HashMap;
+use crate::camera::CameraTag;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct VoxelId(pub u8);
@@ -28,6 +29,8 @@ impl VoxelMaterial {
 
 const CHUNK_SIZE: usize = 32;
 const SEA_LEVEL: i32 = 42;
+const VIEW_DISTANCE: usize = 6;
+const Y_SCALE: f32 = 64.0 * 8.0;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct Voxel {
@@ -92,13 +95,13 @@ impl bevy_building_blocks::Voxel for Voxel {
 }
 
 struct MeshesResource {
-    pub generated_map: HashMap<Point3i, Vec<Entity>>,
+    pub generated_map: Vec<Point3i>,
 }
 
 impl Default for MeshesResource {
     fn default() -> Self {
         MeshesResource {
-            generated_map: HashMap::new(),
+            generated_map: Vec::new(),
         }
     }
 }
@@ -113,42 +116,87 @@ fn get_block_by_height(y: i32, max_y: i32) -> VoxelId {
     }
 }
 
-fn generate_voxels(mut voxel_editor: VoxelEditor<Voxel>) {
-    println!("Initializing voxels");
-
-    let generated_chunks = 6;
-    let yscale = 8.0f32;
-
-    let noise = simdnoise::NoiseBuilder::gradient_2d(
-        generated_chunks * CHUNK_SIZE,
-        generated_chunks * CHUNK_SIZE,
+fn generate_chunk (x: i32, z: i32, voxel_editor: &mut VoxelEditor<Voxel>) {
+    let (noise, min, max) = simdnoise::NoiseBuilder::gradient_2d_offset(
+        x as f32,
+        CHUNK_SIZE,
+        z as f32,
+        CHUNK_SIZE,
     )
-    .with_freq(0.008)
-    .with_seed(15464)
-    .generate_scaled(-1.0, 1.0);
+        .with_freq(0.008)
+        .with_seed(15464)
+        .generate();
 
-    for x in (0..generated_chunks * CHUNK_SIZE).step_by(CHUNK_SIZE as usize) {
-        for z in (0..generated_chunks * CHUNK_SIZE).step_by(CHUNK_SIZE as usize) {
-            let min = PointN([x as i32, 0, z as i32]);
-            let max = PointN([
-                x as i32 + CHUNK_SIZE as i32 - 1,
-                SEA_LEVEL + yscale as i32,
-                z as i32 + CHUNK_SIZE as i32 - 1,
-            ]);
-            voxel_editor.edit_extent(Extent3i::from_min_and_max(min, max), |p, voxel| {
-                let height = SEA_LEVEL
-                    + (noise[p.z() as usize * generated_chunks * CHUNK_SIZE + p.x() as usize]
-                        * yscale)
-                        .round() as i32;
-                *voxel = if p.y() <= height {
-                    Voxel::new(get_block_by_height(p.y(), height as i32), Sd16::NEG_ONE)
-                } else {
-                    Voxel::new(VoxelId(0), Sd16::ONE)
+    let min = PointN([x, 0, z]);
+    let max = PointN([
+        x + CHUNK_SIZE as i32 - 1,
+        SEA_LEVEL + (Y_SCALE * max).round() as i32,
+        z + CHUNK_SIZE as i32 - 1,
+    ]);
+    voxel_editor.edit_extent_and_touch_neighbors(Extent3i::from_min_and_max(min, max), |p, voxel| {
+        let height = SEA_LEVEL
+            + (noise[(p.z() - z) as usize * CHUNK_SIZE + (p.x() - x) as usize]
+            * Y_SCALE).round() as i32;
+        *voxel = if p.y() <= height {
+            Voxel::new(get_block_by_height(p.y(), height as i32), Sd16::NEG_ONE)
+        } else {
+            Voxel::new(VoxelId(0), Sd16::ONE)
+        }
+    });
+}
+
+fn generate_voxels(mut voxel_editor: VoxelEditor<Voxel>, mut res: ResMut<MeshesResource>, query: Query<&Transform, With<CameraTag>>,) {
+    for cam_transform in query.iter() {
+        let cam_pos = cam_transform.translation;
+        let cam_pos = PointN([cam_pos.x.round() as i32, 0i32, cam_pos.z.round() as i32]);
+
+        let extent = transform_to_extent(cam_pos, (VIEW_DISTANCE * CHUNK_SIZE) as i32);
+        let extent = extent_modulo_expand(extent, CHUNK_SIZE as i32);
+        let min = extent.minimum;
+        let max = extent.least_upper_bound();
+
+        for x in (min.x()..max.x()).step_by(CHUNK_SIZE as usize) {
+            for z in (min.z()..max.z()).step_by(CHUNK_SIZE as usize) {
+                if res.generated_map.contains(&PointN([x as i32, 0, z as i32])) {
+                    continue;
                 }
-            });
+                generate_chunk(x as i32, z as i32, &mut voxel_editor);
+                res.generated_map.push(PointN([x as i32, 0, z as i32]))
+            }
         }
     }
-    println!("Voxels initialized");
+}
+
+fn transform_to_extent(cam_pos: Point3i, view_distance: i32) -> Extent3i {
+    Extent3i::from_min_and_lub(
+        PointN([cam_pos.x() - view_distance, 0, cam_pos.z() - view_distance]),
+        PointN([cam_pos.x() + view_distance, 0, cam_pos.z() + view_distance]),
+    )
+}
+
+fn modulo_down(v: i32, modulo: i32) -> i32 {
+    (v / modulo) * modulo
+}
+
+fn modulo_up(v: i32, modulo: i32) -> i32 {
+    ((v / modulo) + 1) * modulo
+}
+
+fn extent_modulo_expand(extent: Extent3i, modulo: i32) -> Extent3i {
+    let min = extent.minimum;
+    let max = extent.least_upper_bound();
+    Extent3i::from_min_and_lub(
+        PointN([
+            modulo_down(min.x(), modulo),
+            min.y(),
+            modulo_down(min.z(), modulo),
+        ]),
+        PointN([
+            modulo_up(max.x(), modulo) + 1,
+            max.y() + 1,
+            modulo_up(max.z(), modulo) + 1,
+        ]),
+    )
 }
 
 struct LoadingTexture(Handle<Texture>);
@@ -250,6 +298,7 @@ fn add_game_schedule(app: &mut AppBuilder) {
             MeshGeneratorPlugin::<Voxel>::update_in_stage(stage);
 
             stage
+                .add_system(generate_voxels.system())
         });
 
     app.insert_resource(State::new(GameState::Loading))

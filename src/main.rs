@@ -3,8 +3,7 @@ use bevy::{
     input::system::exit_on_esc_system,
     prelude::*,
 };
-use bevy_flycam::PlayerPlugin;
-
+use voxel_world_rust::camera::PlayerPlugin;
 use voxel_world_rust::terrain::*;
 
 fn main() {
