@@ -14,7 +14,7 @@ use smooth_voxel_renderer::{
 
 const CHUNK_SIZE: usize = 32;
 const SEA_LEVEL: i32 = 42;
-const VIEW_DISTANCE: usize = 6;
+const VIEW_DISTANCE: usize = 8;
 const Y_SCALE: f32 = 64.0 * 8.0;
 
 struct MeshesResource {
@@ -46,20 +46,33 @@ fn generate_chunk(x: i32, z: i32, voxel_editor: &mut VoxelEditor<Voxel>) {
             .with_seed(15464)
             .generate();
 
+
     let min = PointN([x, 0, z]);
     let max = PointN([
         x + CHUNK_SIZE as i32 - 1,
         SEA_LEVEL + (Y_SCALE * max).round() as i32,
         z + CHUNK_SIZE as i32 - 1,
     ]);
+
+    let (cave_noise, _min, _cave_max) =
+        simdnoise::NoiseBuilder::turbulence_3d_offset(x as f32, CHUNK_SIZE, z as f32, CHUNK_SIZE, 0.0, max.y() as usize)
+            .with_freq(0.02)
+            .with_seed(15464)
+            .generate();
+
     voxel_editor.edit_extent_and_touch_neighbors(
         Extent3i::from_min_and_max(min, max),
         |p, voxel| {
             let height = SEA_LEVEL
                 + (noise[(p.z() - z) as usize * CHUNK_SIZE + (p.x() - x) as usize] * Y_SCALE)
-                    .round() as i32;
+                .round() as i32;
             *voxel = if p.y() <= height {
-                Voxel::new(get_block_by_height(p.y(), height as i32), Sd16::NEG_ONE)
+                let cave_value = cave_noise[(p.x() - x) as usize + CHUNK_SIZE * p.y() as usize + CHUNK_SIZE * CHUNK_SIZE * (p.z() - z) as usize] * 64.0;
+                if cave_value < 1.0 {
+                    Voxel::new(VoxelId(0), Sd16::ONE)
+                } else {
+                    Voxel::new(get_block_by_height(p.y(), height as i32), Sd16::NEG_ONE)
+                }
             } else {
                 Voxel::new(VoxelId(0), Sd16::ONE)
             }
@@ -83,11 +96,12 @@ fn generate_voxels(
 
         for x in (min.x()..max.x()).step_by(CHUNK_SIZE as usize) {
             for z in (min.z()..max.z()).step_by(CHUNK_SIZE as usize) {
-                if res.generated_map.contains(&PointN([x as i32, 0, z as i32])) {
+                let chunk_pos = PointN([x as i32, 0, z as i32]);
+                if res.generated_map.contains(&chunk_pos) {
                     continue;
                 }
                 generate_chunk(x as i32, z as i32, &mut voxel_editor);
-                res.generated_map.push(PointN([x as i32, 0, z as i32]))
+                res.generated_map.push(chunk_pos);
             }
         }
     }
